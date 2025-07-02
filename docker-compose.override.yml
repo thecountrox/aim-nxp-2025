@@ -1,0 +1,13 @@
+services:
+  aim-nxp-2025:
+    environment:
+      - SSH_KEYS=
+      - GPG_KEYS=
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

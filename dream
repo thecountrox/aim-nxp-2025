@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+from argparse import ArgumentParser
+import subprocess
+import os
+import sys
+from pathlib import Path
+
+script_dir = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+
+my_env = os.environ
+my_env['HOST_UID'] = subprocess.check_output(["id", "-u"]).strip().decode()
+my_env['HOST_GID'] = subprocess.check_output(["id", "-g"]).strip().decode()
+
+home = Path(my_env['HOME'])
+
+def create_bind_mounts():
+    bind_mounts = [
+        script_dir / 'work',
+        Path('/tmp/.X11-unix'),
+        home / '.gnupg',
+        home / '.ssh',
+    ]
+    files = [
+        home / '.gitconfig'
+    ]
+    for bind_mount in bind_mounts:
+        if not bind_mount.exists():
+            print('bind_mount:', bind_mount, 'does not exist, creating directory')
+            bind_mount.mkdir(parents=True, exist_ok=True)
+    for file in files:
+        if not file.exists():
+            print('bind_mount:', file, 'does not exist, creating file')
+            file.touch()
+
+def run(cmd):
+    p = subprocess.Popen(cmd,
+        universal_newlines=True, env=my_env)
+    p.wait()
+
+def build(args):
+    cmd = ['docker', 'compose', 'build']
+    run(cmd)
+
+def pull(args):
+    cmd = ['docker', 'compose', 'pull']
+    run(cmd)
+
+def push(args):
+    cmd = ['docker', 'compose', 'push']
+    run(cmd)
+
+def start(args):
+    create_bind_mounts()
+    cmd = ['docker', 'compose', 'up', 'aim-nxp-2025', '-d']
+    run(cmd)
+
+def stop(args):
+    cmd = ['docker', 'compose', 'stop', 'aim-nxp-2025']
+    run(cmd)
+
+def logs(args):
+    cmd = ['docker', 'compose', 'logs', 'aim-nxp-2025']
+    run(cmd)
+
+def clean(args):
+    run(['docker', 'compose', 'stop', 'aim-nxp-2025'])
+    run(['rm', '-rf', './work/'])
+    run(['git', 'checkout', './work/'])
+
+
+CONFIG_TEMPLATE = """
+services:
+
+  dream:
+
+    environment:
+      - SSH_KEYS={ssh_keys:s}
+      - GPG_KEYS={gpg_keys:s}
+"""
+
+def config(args):
+    config_path = script_dir / 'docker-compose.override.yml'
+
+    ## ssh keys
+    unlock_ssh = input('Unlock ssh keys? y/[n]: ').lower().strip() == 'y'
+    ssh_keys = ''
+    if unlock_ssh:
+        ssh_dir = home / '.ssh'
+        if ssh_dir.exists():
+            print('ssh keys:')
+            run(['ls', ssh_dir])
+        ret = input('ssh keys to unlock [id_rsa]: ').lower().strip()
+        if ret == '':
+            ssh_keys = 'id_rsa'
+        else:
+            ssh_keys = ret
+
+    ## gpg keys
+    unlock_gpg = input('Unlock gpg keys? y/[n]: ').lower().strip() == 'y'
+    gpg_keys = ''
+    if unlock_gpg:
+        print('gpg keys:')
+        run(['gpg', '--list-secret-keys', '--keyid-format=long'])
+        ret = input('gpg keys to unlock []: ').lower().strip()
+        if ret == '':
+            gpg_keys = ''
+        else:
+            gpg_keys = ret
+
+    # nvidia gpu
+    nvidia_enabled = input('Enable nvidia? y/[n]: ').lower().strip() == 'y'
+
+    with open(config_path, 'w') as f:
+        f.write(CONFIG_TEMPLATE.format(**locals()))
+
+        if nvidia_enabled:
+            f.write("""
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+""")
+
+def execute(args):
+    cmd = ['docker', 'compose', 'exec', '-u', 'user', 'aim-nxp-2025',
+    '/bin/bash', '-i']
+    if args.cmd is not None:
+        cmd += ['-c', args.cmd]
+    run(cmd)
+
+parser = ArgumentParser('dream')
+parser.set_defaults(func=parser.usage)
+
+subparsers = parser.add_subparsers(help='command')
+
+func_list = [build, start, stop, pull, push, logs, clean, config]
+
+help_dict = {
+    build: 'build the docker image',
+    config: 'configure docker compose overrides',
+    start: 'start the docker container',
+    stop: 'stop the docker container',
+    pull: 'pull the docker image from remote repository',
+    push: 'push the docker image to fremote repository',
+    logs: 'show container logs',
+    clean: 'clean work directory',
+}
+
+for func in func_list:
+    name = func.__name__
+    sp = subparsers.add_parser(name, help=help_dict[func])
+    sp.set_defaults(func=func)
+
+sp = subparsers.add_parser('exec', help='execute a command')
+sp.add_argument('cmd', help='command to run on container', nargs='?', default=None)
+sp.set_defaults(func=execute)
+
+args = parser.parse_args()
+
+if args.func is None:
+    parser.print_usage()
+else:
+    args.func(args)
+
+# vi: ft=python ts=4 sw=4 et

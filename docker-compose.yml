@@ -1,0 +1,40 @@
+version: "3.9"
+
+volumes:
+  gz_config:
+  jupyter_config:
+  rviz2_config:
+
+services:
+  aim-nxp-2025:
+    ports:
+      - 127.0.0.1:8888:8888
+      - 127.0.0.1:8000:8000
+    environment:
+      - HOST_UID=${HOST_UID}
+      - HOST_GID=${HOST_GID}
+      - DISPLAY=$DISPLAY
+      - RUN_VNC=false
+      - RUN_ZETH=true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    image: git.thecount.eu.org/thecountrox/aim-nxp-2025:latest
+    build:
+      dockerfile: Dockerfile
+    tty: true
+    ipc: host
+    stdin_open: true
+    privileged: true
+    hostname: dream
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    volumes:
+      - gz_config:/home/user/.gz
+      - jupyter_config:/home/user/.jupyter
+      - rviz2_config:/home/user/.rviz2
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - $HOME/.gnupg:/home/user/.gnupg
+      - $HOME/.ssh:/home/user/.ssh
+      - $HOME/.gitconfig:/home/user/.gitconfig
