@@ -4,6 +4,7 @@ volumes:
   gz_config:
   jupyter_config:
   rviz2_config:
+  workdir:
 
 services:
   aim-nxp-2025:
@@ -34,6 +35,7 @@ services:
       - gz_config:/home/user/.gz
       - jupyter_config:/home/user/.jupyter
       - rviz2_config:/home/user/.rviz2
+      - workdir:/home/user/cognipilot
       - /tmp/.X11-unix:/tmp/.X11-unix
       - $HOME/.gnupg:/home/user/.gnupg
       - $HOME/.ssh:/home/user/.ssh
