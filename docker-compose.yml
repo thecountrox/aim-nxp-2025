@@ -20,7 +20,7 @@ services:
       driver: "json-file"
       options:
         max-size: "50m"
-    image: git.thecount.eu.org/thecountrox/aim-nxp-2025:latest
+    image: git.thecount.eu.org/thecountrox/aim-nxp-2025:1.0
     build:
       dockerfile: Dockerfile
     tty: true
