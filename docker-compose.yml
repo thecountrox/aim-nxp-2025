@@ -32,6 +32,7 @@ services:
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
     volumes:
+      - ./work:/home/user/cognipilot/workspace
       - gz_config:/home/user/.gz
       - jupyter_config:/home/user/.jupyter
       - rviz2_config:/home/user/.rviz2
