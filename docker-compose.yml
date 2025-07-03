@@ -14,9 +14,13 @@ services:
     environment:
       - HOST_UID=${HOST_UID}
       - HOST_GID=${HOST_GID}
-      - DISPLAY=$DISPLAY
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
       - RUN_VNC=false
       - RUN_ZETH=true
+      - MESA_GL_VERSION_OVERRIDE=4.5
+      - MESA_GLSL_VERSION_OVERRIDE=450
+      - __GL_SYNC_TO_VBLANK=0 # May reduce tearing but can help with performance
     logging:
       driver: "json-file"
       options:
@@ -27,7 +31,7 @@ services:
     tty: true
     ipc: host
     stdin_open: true
-    privileged: true
+    privileged: true # Privileged can solve many issues but is less secure. Try to solve without it if possible.
     hostname: dream
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
@@ -37,7 +41,19 @@ services:
       - jupyter_config:/home/user/.jupyter
       - rviz2_config:/home/user/.rviz2
       - workdir:/home/user/cognipilot
-      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw # Essential for X11
       - $HOME/.gnupg:/home/user/.gnupg
       - $HOME/.ssh:/home/user/.ssh
       - $HOME/.gitconfig:/home/user/.gitconfig
+      # IMPORTANT: If you are NOT using `deploy: resources:` (e.g., for AMD/Intel or older Docker)
+      # You need to explicitly mount the DRI device:
+      - /dev/dri:/dev/dri:rw # Provides access to GPU for direct rendering
+
+    # Recommended for NVIDIA GPUs with nvidia-container-toolkit installed on host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # Or a specific number, e.g., '1'
+              capabilities: [gpu, graphics, compute] # Be explicit about capabilities

@@ -18,6 +18,7 @@ RUN source /opt/ros/humble/setup.bash && \
 
 COPY ./build_foxglove /home/user/bin/build_foxglove
 RUN sudo chmod +x /home/user/bin/build_foxglove
+COPY ./sources.list /etc/apt/sources.list
 
 RUN source /opt/ros/humble/setup.bash && \
   source /home/user/.bashrc && \
